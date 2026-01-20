@@ -295,20 +295,28 @@ function Get-UbuntuISO {
     
     try {
         # Try using BITS transfer first (more reliable for large files)
-        Import-Module BitsTransfer -ErrorAction SilentlyContinue
+        $bitsModule = Get-Module -ListAvailable -Name BitsTransfer
         
-        if (Get-Module -Name BitsTransfer) {
+        if ($bitsModule) {
+            Import-Module BitsTransfer -ErrorAction Stop
             Write-StatusMessage "Using BITS transfer for download..." -Type Info
-            Start-BitsTransfer -Source $ubuntuISOUrl -Destination $isoFullPath -Description "Downloading Ubuntu ISO"
+            Start-BitsTransfer -Source $ubuntuISOUrl -Destination $isoFullPath `
+                -Description "Downloading Ubuntu ISO" `
+                -DisplayName "Ubuntu Server 22.04.3 LTS" `
+                -ErrorAction Stop
             Write-StatusMessage "Ubuntu ISO downloaded successfully: $isoFullPath" -Type Success
         }
         else {
             # Fallback to WebClient
             Write-StatusMessage "Using WebClient for download..." -Type Info
             $webClient = New-Object System.Net.WebClient
-            $webClient.DownloadFile($ubuntuISOUrl, $isoFullPath)
-            $webClient.Dispose()
-            Write-StatusMessage "Ubuntu ISO downloaded successfully: $isoFullPath" -Type Success
+            try {
+                $webClient.DownloadFile($ubuntuISOUrl, $isoFullPath)
+                Write-StatusMessage "Ubuntu ISO downloaded successfully: $isoFullPath" -Type Success
+            }
+            finally {
+                $webClient.Dispose()
+            }
         }
         
         return $isoFullPath
@@ -384,7 +392,13 @@ function New-UbuntuVM {
         Set-VMFirmware -VMName $VMName -FirstBootDevice $dvdDrive -ErrorAction Stop
         
         # Enable Guest Services (integration services)
-        Enable-VMIntegrationService -VMName $VMName -Name "Guest Service Interface" -ErrorAction SilentlyContinue
+        $integrationService = Enable-VMIntegrationService -VMName $VMName -Name "Guest Service Interface" -PassThru -ErrorAction SilentlyContinue
+        if ($integrationService) {
+            Write-StatusMessage "Guest integration services enabled." -Type Success
+        }
+        else {
+            Write-StatusMessage "Could not enable guest integration services. This can be configured later." -Type Warning
+        }
         
         Write-StatusMessage "VM configuration completed." -Type Success
         
@@ -548,7 +562,8 @@ if ($DeployUbuntuVM) {
             # Try to find any available switch
             $switch = Get-VMSwitch | Select-Object -First 1
             if ($switch) {
-                Write-StatusMessage "Using virtual switch: $($switch.Name)" -Type Info
+                Write-StatusMessage "Specified switch '$VirtualSwitchName' not found." -Type Warning
+                Write-StatusMessage "Using alternative virtual switch: $($switch.Name)" -Type Warning
                 $VirtualSwitchName = $switch.Name
             }
             else {
