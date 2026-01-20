@@ -1,15 +1,17 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Installs and configures Hyper-V on Windows Server 2022.
+    Installs and configures Hyper-V on Windows Server 2022 with Ubuntu VM deployment.
 
 .DESCRIPTION
     This script performs the following tasks:
     - Checks prerequisites (hardware virtualization support)
-    - Installs Hyper-V role and management tools
+    - Installs Hyper-V role and management tools (if not already installed)
     - Configures default virtual machine storage paths
     - Creates a virtual switch for VM networking
     - Configures Hyper-V host settings
+    - Downloads Ubuntu Server 22.04.3 LTS ISO
+    - Deploys and configures Ubuntu VM (Generation 2/UEFI)
 
 .NOTES
     Author: GitHub Copilot
@@ -23,7 +25,14 @@ param(
     [string]$VHDPath = "C:\Hyper-V\VHDs",
     [string]$VirtualSwitchName = "External-vSwitch",
     [switch]$CreateExternalSwitch = $true,
-    [switch]$SkipRestart = $false
+    [switch]$SkipRestart = $false,
+    [string]$ISOPath = "C:\Hyper-V\ISOs",
+    [switch]$DeployUbuntuVM = $true,
+    [string]$UbuntuVMName = "Ubuntu-Server",
+    [long]$UbuntuVMMemory = 4GB,
+    [long]$UbuntuVMDiskSize = 50GB,
+    [int]$UbuntuVMCPUCount = 2,
+    [string]$UbuntuISOPath = ""
 )
 
 # Function to write colored output
@@ -249,10 +258,193 @@ function Set-HyperVFirewallRules {
     }
 }
 
+# Function to download Ubuntu ISO
+function Get-UbuntuISO {
+    param(
+        [string]$ISOPath,
+        [string]$ExistingISOPath
+    )
+    
+    Write-StatusMessage "Preparing Ubuntu ISO..." -Type Info
+    
+    # Ubuntu 22.04.3 LTS ISO details
+    $ubuntuISOUrl = "https://releases.ubuntu.com/22.04.3/ubuntu-22.04.3-live-server-amd64.iso"
+    $isoFileName = "ubuntu-22.04.3-live-server-amd64.iso"
+    $isoFullPath = Join-Path -Path $ISOPath -ChildPath $isoFileName
+    
+    # Check if existing ISO path is provided and valid
+    if ($ExistingISOPath -and (Test-Path -Path $ExistingISOPath)) {
+        Write-StatusMessage "Using existing ISO: $ExistingISOPath" -Type Success
+        return $ExistingISOPath
+    }
+    
+    # Create ISO directory if it doesn't exist
+    if (-not (Test-Path -Path $ISOPath)) {
+        New-Item -Path $ISOPath -ItemType Directory -Force | Out-Null
+        Write-StatusMessage "Created ISO directory: $ISOPath" -Type Success
+    }
+    
+    # Check if ISO already exists
+    if (Test-Path -Path $isoFullPath) {
+        Write-StatusMessage "Ubuntu ISO already exists: $isoFullPath" -Type Info
+        return $isoFullPath
+    }
+    
+    Write-StatusMessage "Downloading Ubuntu Server 22.04.3 LTS ISO..." -Type Info
+    Write-StatusMessage "This may take several minutes depending on your internet connection..." -Type Info
+    
+    try {
+        # Try using BITS transfer first (more reliable for large files)
+        Import-Module BitsTransfer -ErrorAction SilentlyContinue
+        
+        if (Get-Module -Name BitsTransfer) {
+            Write-StatusMessage "Using BITS transfer for download..." -Type Info
+            Start-BitsTransfer -Source $ubuntuISOUrl -Destination $isoFullPath -Description "Downloading Ubuntu ISO"
+            Write-StatusMessage "Ubuntu ISO downloaded successfully: $isoFullPath" -Type Success
+        }
+        else {
+            # Fallback to WebClient
+            Write-StatusMessage "Using WebClient for download..." -Type Info
+            $webClient = New-Object System.Net.WebClient
+            $webClient.DownloadFile($ubuntuISOUrl, $isoFullPath)
+            $webClient.Dispose()
+            Write-StatusMessage "Ubuntu ISO downloaded successfully: $isoFullPath" -Type Success
+        }
+        
+        return $isoFullPath
+    }
+    catch {
+        Write-StatusMessage "Error downloading Ubuntu ISO: $_" -Type Error
+        return $null
+    }
+}
+
+# Function to create Ubuntu VM
+function New-UbuntuVM {
+    param(
+        [string]$VMName,
+        [string]$VMPath,
+        [string]$VHDPath,
+        [string]$SwitchName,
+        [string]$ISOPath,
+        [long]$Memory,
+        [long]$DiskSize,
+        [int]$CPUCount
+    )
+    
+    Write-StatusMessage "Creating Ubuntu VM: $VMName" -Type Info
+    
+    try {
+        # Check if VM already exists
+        $existingVM = Get-VM -Name $VMName -ErrorAction SilentlyContinue
+        if ($existingVM) {
+            Write-StatusMessage "VM '$VMName' already exists. Skipping creation." -Type Warning
+            return $existingVM
+        }
+        
+        # Create VHD path for this VM
+        $vhdFullPath = Join-Path -Path $VHDPath -ChildPath "$VMName.vhdx"
+        
+        # Create Generation 2 VM (UEFI support for Ubuntu)
+        Write-StatusMessage "Creating Generation 2 VM (UEFI)..." -Type Info
+        $vm = New-VM -Name $VMName `
+            -MemoryStartupBytes $Memory `
+            -Path $VMPath `
+            -NewVHDPath $vhdFullPath `
+            -NewVHDSizeBytes $DiskSize `
+            -Generation 2 `
+            -SwitchName $SwitchName `
+            -ErrorAction Stop
+        
+        Write-StatusMessage "VM created successfully." -Type Success
+        
+        # Configure VM settings
+        Write-StatusMessage "Configuring VM settings..." -Type Info
+        
+        # Set processor count
+        Set-VMProcessor -VMName $VMName -Count $CPUCount -ErrorAction Stop
+        
+        # Configure dynamic memory
+        Set-VMMemory -VMName $VMName `
+            -DynamicMemoryEnabled $true `
+            -MinimumBytes 1GB `
+            -MaximumBytes 8GB `
+            -ErrorAction Stop
+        
+        # Disable Secure Boot (required for Ubuntu compatibility)
+        Set-VMFirmware -VMName $VMName -EnableSecureBoot Off -ErrorAction Stop
+        
+        # Add DVD drive with ISO
+        Write-StatusMessage "Adding DVD drive with Ubuntu ISO..." -Type Info
+        Add-VMDvdDrive -VMName $VMName -Path $ISOPath -ErrorAction Stop
+        
+        # Set boot order to DVD first
+        $dvdDrive = Get-VMDvdDrive -VMName $VMName
+        $hardDrive = Get-VMHardDiskDrive -VMName $VMName
+        Set-VMFirmware -VMName $VMName -FirstBootDevice $dvdDrive -ErrorAction Stop
+        
+        # Enable Guest Services (integration services)
+        Enable-VMIntegrationService -VMName $VMName -Name "Guest Service Interface" -ErrorAction SilentlyContinue
+        
+        Write-StatusMessage "VM configuration completed." -Type Success
+        
+        # Display VM details
+        Write-StatusMessage "Ubuntu VM Details:" -Type Info
+        Write-Host "  Name: $VMName"
+        Write-Host "  Memory: $($Memory / 1GB)GB (Dynamic: 1GB - 8GB)"
+        Write-Host "  CPUs: $CPUCount"
+        Write-Host "  Disk: $($DiskSize / 1GB)GB"
+        Write-Host "  Generation: 2 (UEFI)"
+        Write-Host "  Switch: $SwitchName"
+        Write-Host "  ISO: $ISOPath"
+        
+        return $vm
+    }
+    catch {
+        Write-StatusMessage "Error creating Ubuntu VM: $_" -Type Error
+        return $null
+    }
+}
+
+# Function to start Ubuntu VM
+function Start-UbuntuVM {
+    param(
+        [string]$VMName
+    )
+    
+    Write-StatusMessage "Starting Ubuntu VM: $VMName" -Type Info
+    
+    try {
+        # Check VM state
+        $vm = Get-VM -Name $VMName -ErrorAction Stop
+        
+        if ($vm.State -eq "Running") {
+            Write-StatusMessage "VM is already running." -Type Info
+        }
+        else {
+            Start-VM -Name $VMName -ErrorAction Stop
+            Write-StatusMessage "VM started successfully." -Type Success
+        }
+        
+        Write-Host ""
+        Write-StatusMessage "Next Steps for Ubuntu Installation:" -Type Info
+        Write-Host "  1. Connect to the VM using Hyper-V Manager or VMConnect"
+        Write-Host "  2. Follow the Ubuntu Server installation wizard"
+        Write-Host "  3. After installation, remove the ISO and restart the VM"
+        Write-Host ""
+        Write-StatusMessage "To connect to the VM, run:" -Type Info
+        Write-Host "  vmconnect.exe localhost '$VMName'"
+        Write-Host ""
+    }
+    catch {
+        Write-StatusMessage "Error starting Ubuntu VM: $_" -Type Error
+    }
+}
+
 # Main execution
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  Hyper-V Installation and Configuration Script" -ForegroundColor Cyan
-Write-Host "  Windows Server 2022" -ForegroundColor Cyan
+Write-Host "  Windows Server 2022 + Ubuntu VM Deployment" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -269,11 +461,17 @@ if (-not (Test-VirtualizationSupport)) {
     exit 1
 }
 
+Write-Host ""
+Write-Host "=== STEP 1: Hyper-V Installation Check ===" -ForegroundColor Cyan
+Write-Host ""
+
 # Check if Hyper-V is already installed
 if (Test-HyperVInstalled) {
-    Write-StatusMessage "Hyper-V is already installed. Proceeding with configuration..." -Type Info
+    Write-StatusMessage "Hyper-V is already installed. Skipping installation, proceeding to configuration..." -Type Info
 }
 else {
+    Write-StatusMessage "Hyper-V is not installed. Starting installation..." -Type Info
+    
     # Install Hyper-V
     $installSuccess = Install-HyperVRole
     
@@ -300,6 +498,10 @@ else {
     }
 }
 
+Write-Host ""
+Write-Host "=== STEP 2: Hyper-V Configuration ===" -ForegroundColor Cyan
+Write-Host ""
+
 # Configure Hyper-V (only runs if Hyper-V is fully installed)
 try {
     # Import Hyper-V module
@@ -319,18 +521,82 @@ try {
     # Configure firewall rules
     Set-HyperVFirewallRules
     
-    Write-Host ""
-    Write-Host "================================================" -ForegroundColor Green
-    Write-StatusMessage "Hyper-V installation and configuration completed successfully!" -Type Success
-    Write-Host "================================================" -ForegroundColor Green
-    Write-Host ""
-    Write-StatusMessage "Next steps:" -Type Info
-    Write-Host "  1. Use Hyper-V Manager or PowerShell to create virtual machines"
-    Write-Host "  2. Configure additional virtual switches as needed"
-    Write-Host "  3. Set up VM replication if required"
-    Write-Host ""
+    Write-StatusMessage "Hyper-V configuration completed successfully!" -Type Success
 }
 catch {
     Write-StatusMessage "Error during configuration: $_" -Type Error
     Write-StatusMessage "The Hyper-V module may not be available. Try restarting the server first." -Type Warning
+    exit 1
 }
+
+# Deploy Ubuntu VM if requested
+if ($DeployUbuntuVM) {
+    Write-Host ""
+    Write-Host "=== STEP 3: Ubuntu VM Deployment ===" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Download or locate Ubuntu ISO
+    $ubuntuISO = Get-UbuntuISO -ISOPath $ISOPath -ExistingISOPath $UbuntuISOPath
+    
+    if (-not $ubuntuISO) {
+        Write-StatusMessage "Failed to obtain Ubuntu ISO. Skipping VM deployment." -Type Error
+    }
+    else {
+        # Verify virtual switch exists
+        $switch = Get-VMSwitch -Name $VirtualSwitchName -ErrorAction SilentlyContinue
+        if (-not $switch) {
+            # Try to find any available switch
+            $switch = Get-VMSwitch | Select-Object -First 1
+            if ($switch) {
+                Write-StatusMessage "Using virtual switch: $($switch.Name)" -Type Info
+                $VirtualSwitchName = $switch.Name
+            }
+            else {
+                Write-StatusMessage "No virtual switch available. Cannot create VM." -Type Error
+                $ubuntuISO = $null
+            }
+        }
+        
+        if ($ubuntuISO) {
+            # Create Ubuntu VM
+            $vm = New-UbuntuVM -VMName $UbuntuVMName `
+                -VMPath $VMPath `
+                -VHDPath $VHDPath `
+                -SwitchName $VirtualSwitchName `
+                -ISOPath $ubuntuISO `
+                -Memory $UbuntuVMMemory `
+                -DiskSize $UbuntuVMDiskSize `
+                -CPUCount $UbuntuVMCPUCount
+            
+            if ($vm) {
+                # Start the VM
+                Start-UbuntuVM -VMName $UbuntuVMName
+            }
+        }
+    }
+}
+
+Write-Host ""
+Write-Host "================================================" -ForegroundColor Green
+Write-StatusMessage "Hyper-V setup completed successfully!" -Type Success
+Write-Host "================================================" -ForegroundColor Green
+Write-Host ""
+
+if ($DeployUbuntuVM) {
+    Write-StatusMessage "Summary:" -Type Info
+    Write-Host "  ✓ Hyper-V installed and configured"
+    Write-Host "  ✓ Virtual switch created: $VirtualSwitchName"
+    Write-Host "  ✓ Ubuntu VM deployed: $UbuntuVMName"
+    Write-Host ""
+    Write-StatusMessage "Management Tools:" -Type Info
+    Write-Host "  • Hyper-V Manager: virtmgmt.msc"
+    Write-Host "  • PowerShell: Get-VM, Start-VM, Stop-VM"
+    Write-Host "  • Connect to VM: vmconnect.exe localhost '$UbuntuVMName'"
+}
+else {
+    Write-StatusMessage "Next steps:" -Type Info
+    Write-Host "  1. Use Hyper-V Manager or PowerShell to create virtual machines"
+    Write-Host "  2. Configure additional virtual switches as needed"
+    Write-Host "  3. Set up VM replication if required"
+}
+Write-Host ""

@@ -6,7 +6,7 @@ A collection of scripts, templates, and guides for infrastructure modernization 
 
 This repository contains automation scripts and documentation to help IT professionals modernize their infrastructure. The scenarios cover common tasks such as:
 
-- **Hyper-V Deployment** - Automated installation and configuration of Hyper-V on Windows Server
+- **Hyper-V Deployment** - Automated installation and configuration of Hyper-V on Windows Server with Ubuntu VM deployment
 - **Server Configuration** - PowerShell scripts for Windows Server setup and hardening
 - **Migration Tools** - Scripts to assist with workload migration and modernization
 
@@ -55,23 +55,35 @@ ModernizationScenarios/
 
 **Script:** `Scripts/Hyper-V/Install-ConfigureHyperV.ps1`
 
-Automates the complete setup of Hyper-V on Windows Server 2022, including:
+Automates the complete setup of Hyper-V on Windows Server 2022, including Ubuntu VM deployment:
 
 | Feature | Description |
 |---------|-------------|
-| Role Installation | Installs Hyper-V role with management tools |
-| Storage Configuration | Creates default VM and VHD directories |
+| Smart Installation | Checks if Hyper-V is installed, skips installation if already present |
+| Role Installation | Installs Hyper-V role with management tools (if needed) |
+| Storage Configuration | Creates default VM, VHD, and ISO directories |
 | Virtual Networking | Creates external virtual switch |
 | Host Settings | Configures Enhanced Session Mode and NUMA spanning |
 | Firewall Rules | Enables required firewall rules |
+| Ubuntu ISO Download | Automatically downloads Ubuntu Server 22.04.3 LTS ISO |
+| Ubuntu VM Deployment | Creates and configures Generation 2 (UEFI) Ubuntu VM |
 
 **Usage:**
 ```powershell
-# Basic installation with defaults
+# Full deployment with defaults (includes Ubuntu VM)
 .\Install-ConfigureHyperV.ps1
 
-# Custom paths
-.\Install-ConfigureHyperV.ps1 -VMPath "D:\VMs" -VHDPath "D:\VHDs"
+# Custom VM specifications
+.\Install-ConfigureHyperV.ps1 -UbuntuVMName "WebServer-Ubuntu" -UbuntuVMMemory 8GB -UbuntuVMCPUCount 4
+
+# Custom paths for storage
+.\Install-ConfigureHyperV.ps1 -VMPath "D:\VMs" -VHDPath "D:\VHDs" -ISOPath "D:\ISOs"
+
+# Use existing Ubuntu ISO
+.\Install-ConfigureHyperV.ps1 -UbuntuISOPath "D:\ISOs\ubuntu-22.04.3-live-server-amd64.iso"
+
+# Skip Ubuntu VM deployment (Hyper-V only)
+.\Install-ConfigureHyperV.ps1 -DeployUbuntuVM:$false
 
 # Custom virtual switch name
 .\Install-ConfigureHyperV.ps1 -VirtualSwitchName "Production-vSwitch"
@@ -89,6 +101,22 @@ Automates the complete setup of Hyper-V on Windows Server 2022, including:
 | `-VirtualSwitchName` | String | `External-vSwitch` | Name for the virtual switch |
 | `-CreateExternalSwitch` | Switch | `$true` | Create an external virtual switch |
 | `-SkipRestart` | Switch | `$false` | Skip the restart prompt |
+| `-ISOPath` | String | `C:\Hyper-V\ISOs` | Directory for ISO storage |
+| `-DeployUbuntuVM` | Switch | `$true` | Deploy Ubuntu VM after configuration |
+| `-UbuntuVMName` | String | `Ubuntu-Server` | Name for the Ubuntu VM |
+| `-UbuntuVMMemory` | Long | `4GB` | Memory allocation (Dynamic: 1GB-8GB) |
+| `-UbuntuVMDiskSize` | Long | `50GB` | Virtual disk size |
+| `-UbuntuVMCPUCount` | Int | `2` | Number of virtual CPUs |
+| `-UbuntuISOPath` | String | `""` | Path to existing ISO (optional) |
+
+**Ubuntu VM Features:**
+- Generation 2 VM (UEFI support)
+- Dynamic memory (1GB minimum, 8GB maximum)
+- Secure Boot disabled (Ubuntu compatibility)
+- DVD drive with ISO attached
+- Boot order set to DVD first
+- Guest integration services enabled
+- Automatic ISO download if not provided
 
 ## 🔧 Configuration
 
