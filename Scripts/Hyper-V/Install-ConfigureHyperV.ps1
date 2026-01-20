@@ -300,10 +300,21 @@ function Get-UbuntuISO {
         
         try {
             $webClient = New-Object System.Net.WebClient
+            $downloadComplete = $false
+            $downloadError = $null
             
             # Add progress event handler
             Register-ObjectEvent -InputObject $webClient -EventName DownloadProgressChanged -Action {
-                Write-Progress -Activity "Downloading Ubuntu ISO" -Status "$($EventArgs.ProgressPercentage)% Complete" -PercentComplete $EventArgs.ProgressPercentage
+                $percent = $Event.SourceEventArgs.ProgressPercentage
+                Write-Progress -Activity "Downloading Ubuntu ISO" -Status "$percent% Complete" -PercentComplete $percent
+            } | Out-Null
+            
+            # Add completion event handler
+            Register-ObjectEvent -InputObject $webClient -EventName DownloadFileCompleted -Action {
+                $script:downloadComplete = $true
+                if ($Event.SourceEventArgs.Error) {
+                    $script:downloadError = $Event.SourceEventArgs.Error
+                }
             } | Out-Null
             
             # Download the file
@@ -314,11 +325,22 @@ function Get-UbuntuISO {
                 Start-Sleep -Milliseconds 100
             }
             
+            # Clean up event registrations
+            Get-EventSubscriber | Where-Object { $_.SourceObject -eq $webClient } | Unregister-Event
+            
             Write-Progress -Activity "Downloading Ubuntu ISO" -Completed
             $webClient.Dispose()
             
-            # Clean up event registration
-            Get-EventSubscriber | Where-Object { $_.SourceObject -eq $webClient } | Unregister-Event
+            # Check for errors
+            if ($downloadError) {
+                Write-StatusMessage "Download failed: $downloadError" -Type Error
+                return $null
+            }
+            
+            if (-not (Test-Path $fullPath)) {
+                Write-StatusMessage "Download completed but file not found." -Type Error
+                return $null
+            }
             
             Write-StatusMessage "Ubuntu ISO downloaded successfully." -Type Success
             return $fullPath
