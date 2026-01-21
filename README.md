@@ -138,6 +138,54 @@ Zero-touch automated setup of Hyper-V on Windows Server 2022 with optional Ubunt
 .\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -UbuntuVMName "MyUbuntu" -UbuntuVMMemory 8GB -UbuntuVMDiskSize 100GB
 ```
 
+### Ubuntu VM Deployment (Standalone)
+
+**Script:** `Scripts/Hyper-V/Deploy-UbuntuVM.ps1`
+
+Standalone zero-touch script to deploy Ubuntu VMs on an existing Hyper-V installation.
+
+**Features:**
+- Zero-touch deployment (no user prompts)
+- Auto-downloads Ubuntu 22.04 or 24.04 LTS ISO
+- Smart virtual switch detection
+- Generation 2 UEFI VM optimized for Ubuntu
+- Supports overwriting existing VMs with `-Force`
+
+**Prerequisites:**
+- Hyper-V must be installed and running
+- Administrator privileges required
+
+**Usage:**
+```powershell
+# Default deployment (Ubuntu 22.04, 4GB RAM, 2 CPUs, 50GB disk)
+.\Scripts\Hyper-V\Deploy-UbuntuVM.ps1
+
+# Custom configuration
+.\Scripts\Hyper-V\Deploy-UbuntuVM.ps1 -VMName "WebServer" -Memory 8GB -CPUCount 4
+
+# Deploy Ubuntu 24.04 LTS
+.\Scripts\Hyper-V\Deploy-UbuntuVM.ps1 -UbuntuVersion 2404
+
+# Overwrite existing VM
+.\Scripts\Hyper-V\Deploy-UbuntuVM.ps1 -VMName "Ubuntu-Server" -Force
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `-VMName` | String | `Ubuntu-Server` | Name for the VM |
+| `-VMPath` | String | `C:\Hyper-V\VMs` | VM configuration storage path |
+| `-VHDPath` | String | `C:\Hyper-V\VHDs` | Virtual hard disk storage path |
+| `-ISOPath` | String | `C:\Hyper-V\ISOs` | ISO file storage path |
+| `-Memory` | Long | `4GB` | Memory allocation |
+| `-DiskSize` | Long | `50GB` | Virtual disk size |
+| `-CPUCount` | Int | `2` | Number of virtual CPUs |
+| `-SwitchName` | String | (auto-detect) | Virtual switch name |
+| `-UbuntuVersion` | String | `2204` | Ubuntu version (2204 or 2404) |
+| `-AutoStart` | Switch | `$true` | Start VM after creation |
+| `-Force` | Switch | `$false` | Overwrite existing VM with same name |
+
 ## 🔧 Configuration
 
 ### Default Settings
