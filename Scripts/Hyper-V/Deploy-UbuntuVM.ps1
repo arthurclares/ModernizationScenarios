@@ -43,10 +43,10 @@
     Ubuntu version to deploy. Valid values: "2204" (22.04 LTS) or "2404" (24.04 LTS). Default: "2204"
 
 .PARAMETER AutoStart
-    Automatically start the VM after creation. Default: $true
+    Automatically start the VM after creation. Enabled by default. Use -AutoStart:$false to disable.
 
 .PARAMETER Force
-    Force overwrite if a VM with the same name already exists. Default: $false
+    Force overwrite if a VM with the same name already exists.
 
 .EXAMPLE
     .\Deploy-UbuntuVM.ps1
@@ -98,10 +98,13 @@ param(
     [ValidateSet("2204", "2404")]
     [string]$UbuntuVersion = "2204",
     
-    [switch]$AutoStart = $true,
+    [switch]$AutoStart,
     
-    [switch]$Force = $false
+    [switch]$Force
 )
+
+# Constants
+$script:MinimumISOSizeGB = 1
 
 # Ubuntu ISO configuration
 $UbuntuISOs = @{
@@ -288,7 +291,7 @@ function Get-UbuntuISO {
     # Check if ISO already exists and is valid
     if (Test-Path -Path $isoFile) {
         $fileInfo = Get-Item -Path $isoFile
-        if ($fileInfo.Length -gt 1GB) {
+        if ($fileInfo.Length -gt ($script:MinimumISOSizeGB * 1GB)) {
             Write-Log "ISO file already exists and appears valid: $isoFile ($([math]::Round($fileInfo.Length / 1GB, 2)) GB)" -Level SUCCESS
             return $isoFile
         }
@@ -315,7 +318,7 @@ function Get-UbuntuISO {
         Write-Log "BITS transfer failed: $_" -Level WARNING
         Write-Log "Falling back to WebClient..." -Level INFO
         
-        # Fall back to WebClient
+        # Fall back to WebClient (deprecated but still supported for compatibility)
         try {
             $webClient = New-Object System.Net.WebClient
             $webClient.DownloadFile($ISOInfo.Url, $isoFile)
@@ -336,12 +339,12 @@ function Get-UbuntuISO {
     # Validate downloaded file size
     if ($downloadSuccess) {
         $fileInfo = Get-Item -Path $isoFile
-        if ($fileInfo.Length -gt 1GB) {
+        if ($fileInfo.Length -gt ($script:MinimumISOSizeGB * 1GB)) {
             Write-Log "ISO file validated: $([math]::Round($fileInfo.Length / 1GB, 2)) GB" -Level SUCCESS
             return $isoFile
         }
         else {
-            Write-Log "Downloaded file is too small ($([math]::Round($fileInfo.Length / 1MB, 2)) MB). Expected > 1GB." -Level ERROR
+            Write-Log "Downloaded file is too small ($([math]::Round($fileInfo.Length / 1MB, 2)) MB). Expected > $script:MinimumISOSizeGB GB." -Level ERROR
             Remove-Item -Path $isoFile -Force -ErrorAction SilentlyContinue
             throw "Downloaded ISO file failed size validation"
         }
@@ -621,7 +624,12 @@ catch {
     exit 1
 }
 
-# Start VM if AutoStart is enabled
+# Start VM if AutoStart is enabled (default behavior unless -AutoStart:$false is specified)
+if (-not $PSBoundParameters.ContainsKey('AutoStart')) {
+    # Default to auto-start if not explicitly specified
+    $AutoStart = $true
+}
+
 if ($AutoStart) {
     Write-Log "Starting VM..." -Level INFO
     try {
