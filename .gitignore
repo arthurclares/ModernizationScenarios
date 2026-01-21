@@ -1,0 +1,23 @@
+# PowerShell temporary files
+*.ps1~
+*.tmp
+
+# Logs
+*.log
+
+# Temp directories
+/tmp/
+temp/
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Downloaded ISOs (optional - uncomment if you don't want to track ISOs)
+# *.iso

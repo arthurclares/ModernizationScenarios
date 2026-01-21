@@ -33,6 +33,60 @@ This repository contains automation scripts and documentation to help IT profess
    .\Scripts\Hyper-V\Install-ConfigureHyperV.ps1
    ```
 
+## 🤖 Zero-Touch Deployment
+
+This script is designed for fully automated deployment with no user interaction required.
+
+### Fully Automated Deployment
+```powershell
+# Complete zero-touch deployment (default)
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1
+
+# With automatic restart if Hyper-V installation requires it
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -AutoRestart
+```
+
+### What Happens Automatically:
+1. ✅ Checks and installs Hyper-V if needed
+2. ✅ Creates storage directories (VMs, VHDs, ISOs)
+3. ✅ Configures Hyper-V host settings
+4. ✅ Creates virtual switch (auto-selects network adapter)
+5. ✅ Downloads Ubuntu Server 22.04 LTS ISO (~2.5GB)
+6. ✅ Creates Ubuntu VM (Gen 2, 4GB RAM, 50GB disk, 2 CPUs)
+7. ✅ Starts the VM automatically
+
+### Parameters for Customization
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-VMPath` | `C:\Hyper-V\VMs` | Path for virtual machines |
+| `-VHDPath` | `C:\Hyper-V\VHDs` | Path for virtual hard disks |
+| `-ISOPath` | `C:\Hyper-V\ISOs` | Path for ISO files |
+| `-VirtualSwitchName` | `External-vSwitch` | Name for the virtual switch |
+| `-CreateExternalSwitch` | `$true` | Create an external virtual switch |
+| `-AutoRestart` | `$false` | Automatically restart if Hyper-V installation requires it |
+| `-DeployUbuntuVM` | `$true` | Deploy Ubuntu VM (set to `$false` for Hyper-V only) |
+| `-AutoStartVM` | `$true` | Automatically start the Ubuntu VM after creation |
+| `-UbuntuVMName` | `Ubuntu-Server` | Name for the Ubuntu VM |
+| `-UbuntuVMMemory` | `4GB` | Memory allocation for VM |
+| `-UbuntuVMDiskSize` | `50GB` | Virtual disk size |
+| `-UbuntuVMCPUCount` | `2` | Number of virtual CPUs |
+| `-UbuntuISOUrl` | Ubuntu 22.04.3 URL | Custom ISO download URL |
+
+### Example Customizations
+```powershell
+# Hyper-V only (no Ubuntu VM)
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -DeployUbuntuVM:$false
+
+# Custom VM configuration
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -UbuntuVMName "MyUbuntu" -UbuntuVMMemory 8GB -UbuntuVMDiskSize 100GB -UbuntuVMCPUCount 4
+
+# Custom storage paths
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -VMPath "D:\VMs" -VHDPath "D:\VHDs" -ISOPath "D:\ISOs"
+
+# Create VM but don't start it
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -AutoStartVM:$false
+```
+
 ## 📁 Repository Structure
 
 ```
@@ -55,40 +109,34 @@ ModernizationScenarios/
 
 **Script:** `Scripts/Hyper-V/Install-ConfigureHyperV.ps1`
 
-Automates the complete setup of Hyper-V on Windows Server 2022, including:
+Zero-touch automated setup of Hyper-V on Windows Server 2022 with optional Ubuntu VM deployment:
 
 | Feature | Description |
 |---------|-------------|
 | Role Installation | Installs Hyper-V role with management tools |
-| Storage Configuration | Creates default VM and VHD directories |
-| Virtual Networking | Creates external virtual switch |
+| Storage Configuration | Creates default VM, VHD, and ISO directories |
+| Virtual Networking | Creates external virtual switch (auto-selects adapter) |
 | Host Settings | Configures Enhanced Session Mode and NUMA spanning |
 | Firewall Rules | Enables required firewall rules |
+| **ISO Download** | Automatically downloads Ubuntu Server 22.04 LTS ISO |
+| **VM Creation** | Creates Generation 2 (UEFI) Ubuntu VM |
+| **VM Configuration** | Dynamic memory, secure boot disabled, network attached |
+| **Auto-Start** | Automatically starts the VM after creation |
 
 **Usage:**
 ```powershell
-# Basic installation with defaults
-.\Install-ConfigureHyperV.ps1
+# Zero-touch deployment (default)
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1
 
-# Custom paths
-.\Install-ConfigureHyperV.ps1 -VMPath "D:\VMs" -VHDPath "D:\VHDs"
+# With automatic restart
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -AutoRestart
 
-# Custom virtual switch name
-.\Install-ConfigureHyperV.ps1 -VirtualSwitchName "Production-vSwitch"
+# Hyper-V only (no Ubuntu VM)
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -DeployUbuntuVM:$false
 
-# Skip restart prompt
-.\Install-ConfigureHyperV.ps1 -SkipRestart
+# Custom VM configuration
+.\Scripts\Hyper-V\Install-ConfigureHyperV.ps1 -UbuntuVMName "MyUbuntu" -UbuntuVMMemory 8GB -UbuntuVMDiskSize 100GB
 ```
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `-VMPath` | String | `C:\Hyper-V\VMs` | Default path for virtual machines |
-| `-VHDPath` | String | `C:\Hyper-V\VHDs` | Default path for virtual hard disks |
-| `-VirtualSwitchName` | String | `External-vSwitch` | Name for the virtual switch |
-| `-CreateExternalSwitch` | Switch | `$true` | Create an external virtual switch |
-| `-SkipRestart` | Switch | `$false` | Skip the restart prompt |
 
 ## 🔧 Configuration
 
