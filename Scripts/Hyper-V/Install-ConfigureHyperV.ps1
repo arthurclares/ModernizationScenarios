@@ -1,21 +1,58 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Zero-touch installation and configuration of Hyper-V with automated Ubuntu VM deployment.
+    Zero-touch installation and configuration of Hyper-V infrastructure.
 
 .DESCRIPTION
     This script performs the following tasks with NO user interaction required:
     - Checks prerequisites (hardware virtualization support)
     - Installs Hyper-V role and management tools
-    - Configures default virtual machine storage paths
-    - Creates a virtual switch for VM networking
-    - Configures Hyper-V host settings
-    - Downloads Ubuntu Server ISO automatically
-    - Creates and starts Ubuntu VM
+    - Creates storage directories for VMs, VHDs, and ISOs
+    - Configures Hyper-V host settings (paths, enhanced session mode, NUMA spanning)
+    - Creates multiple virtual switches for VM networking:
+      * External switch (bound to physical adapter if available)
+      * Internal switch (ALWAYS created as fallback)
+      * Private switch (for isolated testing)
+    - Configures firewall rules for Hyper-V
+
+    For Ubuntu VM deployment, use the separate Deploy-UbuntuVM.ps1 script.
+
+.PARAMETER VMPath
+    Path where virtual machine configuration files will be stored. Default: "C:\Hyper-V\VMs"
+
+.PARAMETER VHDPath
+    Path where virtual hard disk files will be stored. Default: "C:\Hyper-V\VHDs"
+
+.PARAMETER ISOPath
+    Path where ISO files will be stored. Default: "C:\Hyper-V\ISOs"
+
+.PARAMETER ExternalSwitchName
+    Name for the external virtual switch. Default: "External-vSwitch"
+
+.PARAMETER InternalSwitchName
+    Name for the internal virtual switch. Default: "Internal-vSwitch"
+
+.PARAMETER AutoRestart
+    Automatically restart if Hyper-V installation requires it. Default: $false
+
+.EXAMPLE
+    .\Install-ConfigureHyperV.ps1
+    
+    Installs and configures Hyper-V with default settings.
+
+.EXAMPLE
+    .\Install-ConfigureHyperV.ps1 -AutoRestart
+    
+    Installs Hyper-V and automatically restarts if needed.
+
+.EXAMPLE
+    .\Install-ConfigureHyperV.ps1 -VMPath "D:\VMs" -VHDPath "D:\VHDs"
+    
+    Installs Hyper-V with custom storage paths.
 
 .NOTES
-    Author: GitHub Copilot
-    Date: 2026-01-20
+    Author: Arthur Clares
+    Date: 2026-01-21
     Requires: Windows Server 2022, Administrator privileges
     Zero-Touch: No user prompts - fully automated operation
 #>
@@ -24,20 +61,13 @@ param(
     [string]$VMPath = "C:\Hyper-V\VMs",
     [string]$VHDPath = "C:\Hyper-V\VHDs",
     [string]$ISOPath = "C:\Hyper-V\ISOs",
-    [string]$VirtualSwitchName = "External-vSwitch",
-    [switch]$CreateExternalSwitch = $true,
-    [switch]$AutoRestart = $false,
-    [switch]$DeployUbuntuVM = $true,
-    [switch]$AutoStartVM = $true,
-    [string]$UbuntuVMName = "Ubuntu-Server",
-    [long]$UbuntuVMMemory = 4GB,
-    [long]$UbuntuVMDiskSize = 50GB,
-    [int]$UbuntuVMCPUCount = 2,
-    [string]$UbuntuISOUrl = "https://releases.ubuntu.com/22.04.3/ubuntu-22.04.3-live-server-amd64.iso"
+    [string]$ExternalSwitchName = "External-vSwitch",
+    [string]$InternalSwitchName = "Internal-vSwitch",
+    [switch]$AutoRestart = $false
 )
 
-# Function to write colored output
-function Write-StatusMessage {
+# Function to write timestamped log messages
+function Write-Log {
     param(
         [string]$Message,
         [ValidateSet("Info", "Success", "Warning", "Error")]
@@ -58,26 +88,27 @@ function Write-StatusMessage {
         "Error"   = "[ERROR]"
     }
     
-    Write-Host "$($prefix[$Type]) $Message" -ForegroundColor $colors[$Type]
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "[$timestamp] $($prefix[$Type]) $Message" -ForegroundColor $colors[$Type]
 }
 
 # Function to check hardware virtualization support
 function Test-VirtualizationSupport {
-    Write-StatusMessage "Checking hardware virtualization support..." -Type Info
+    Write-Log "Checking hardware virtualization support..." -Type Info
     
-    $processorInfo = Get-WmiObject -Class Win32_Processor
+    $processorInfo = Get-CimInstance -ClassName Win32_Processor
     $vmSupport = $processorInfo.VirtualizationFirmwareEnabled
     
     if ($vmSupport -eq $true) {
-        Write-StatusMessage "Hardware virtualization is enabled in BIOS/UEFI." -Type Success
+        Write-Log "Hardware virtualization is enabled in BIOS/UEFI." -Type Success
         return $true
     }
     elseif ($vmSupport -eq $false) {
-        Write-StatusMessage "Hardware virtualization is NOT enabled. Please enable it in BIOS/UEFI settings." -Type Error
+        Write-Log "Hardware virtualization is NOT enabled. Please enable it in BIOS/UEFI settings." -Type Error
         return $false
     }
     else {
-        Write-StatusMessage "Unable to determine virtualization support. Proceeding with installation..." -Type Warning
+        Write-Log "Unable to determine virtualization support. Proceeding with installation..." -Type Warning
         return $true
     }
 }
@@ -90,7 +121,7 @@ function Test-HyperVInstalled {
 
 # Function to install Hyper-V
 function Install-HyperVRole {
-    Write-StatusMessage "Installing Hyper-V role and management tools..." -Type Info
+    Write-Log "Installing Hyper-V role and management tools..." -Type Info
     
     try {
         # Install Hyper-V with management tools
@@ -100,20 +131,20 @@ function Install-HyperVRole {
             -ErrorAction Stop
         
         if ($installResult.Success) {
-            Write-StatusMessage "Hyper-V role installed successfully." -Type Success
+            Write-Log "Hyper-V role installed successfully." -Type Success
             
             if ($installResult.RestartNeeded -eq "Yes") {
-                Write-StatusMessage "A system restart is required to complete the installation." -Type Warning
+                Write-Log "A system restart is required to complete the installation." -Type Warning
                 return $true
             }
         }
         else {
-            Write-StatusMessage "Hyper-V installation failed." -Type Error
+            Write-Log "Hyper-V installation failed." -Type Error
             return $false
         }
     }
     catch {
-        Write-StatusMessage "Error installing Hyper-V: $_" -Type Error
+        Write-Log "Error installing Hyper-V: $_" -Type Error
         return $false
     }
     
@@ -128,33 +159,33 @@ function Initialize-HyperVStorage {
         [string]$ISOPath
     )
     
-    Write-StatusMessage "Creating Hyper-V storage directories..." -Type Info
+    Write-Log "Creating Hyper-V storage directories..." -Type Info
     
     # Create VM directory
     if (-not (Test-Path -Path $VMPath)) {
         New-Item -Path $VMPath -ItemType Directory -Force | Out-Null
-        Write-StatusMessage "Created VM directory: $VMPath" -Type Success
+        Write-Log "Created VM directory: $VMPath" -Type Success
     }
     else {
-        Write-StatusMessage "VM directory already exists: $VMPath" -Type Info
+        Write-Log "VM directory already exists: $VMPath" -Type Info
     }
     
     # Create VHD directory
     if (-not (Test-Path -Path $VHDPath)) {
         New-Item -Path $VHDPath -ItemType Directory -Force | Out-Null
-        Write-StatusMessage "Created VHD directory: $VHDPath" -Type Success
+        Write-Log "Created VHD directory: $VHDPath" -Type Success
     }
     else {
-        Write-StatusMessage "VHD directory already exists: $VHDPath" -Type Info
+        Write-Log "VHD directory already exists: $VHDPath" -Type Info
     }
     
     # Create ISO directory
     if (-not (Test-Path -Path $ISOPath)) {
         New-Item -Path $ISOPath -ItemType Directory -Force | Out-Null
-        Write-StatusMessage "Created ISO directory: $ISOPath" -Type Success
+        Write-Log "Created ISO directory: $ISOPath" -Type Success
     }
     else {
-        Write-StatusMessage "ISO directory already exists: $ISOPath" -Type Info
+        Write-Log "ISO directory already exists: $ISOPath" -Type Info
     }
 }
 
@@ -165,7 +196,7 @@ function Set-HyperVHostConfiguration {
         [string]$VHDPath
     )
     
-    Write-StatusMessage "Configuring Hyper-V host settings..." -Type Info
+    Write-Log "Configuring Hyper-V host settings..." -Type Info
     
     try {
         # Set default paths for VMs and VHDs
@@ -179,74 +210,117 @@ function Set-HyperVHostConfiguration {
         # Configure NUMA spanning (useful for large VMs)
         Set-VMHost -NumaSpanningEnabled $true -ErrorAction Stop
         
-        Write-StatusMessage "Hyper-V host configuration completed." -Type Success
+        Write-Log "Hyper-V host configuration completed." -Type Success
         
         # Display current configuration
         $vmHost = Get-VMHost
-        Write-StatusMessage "Current Hyper-V Host Configuration:" -Type Info
+        Write-Log "Current Hyper-V Host Configuration:" -Type Info
         Write-Host "  Virtual Machine Path: $($vmHost.VirtualMachinePath)"
         Write-Host "  Virtual Hard Disk Path: $($vmHost.VirtualHardDiskPath)"
         Write-Host "  Enhanced Session Mode: $($vmHost.EnableEnhancedSessionMode)"
         Write-Host "  NUMA Spanning: $($vmHost.NumaSpanningEnabled)"
     }
     catch {
-        Write-StatusMessage "Error configuring Hyper-V host: $_" -Type Error
+        Write-Log "Error configuring Hyper-V host: $_" -Type Error
     }
 }
 
-# Function to create virtual switch
-function New-HyperVVirtualSwitch {
+# Function to create virtual switches
+function New-HyperVVirtualSwitches {
     param(
-        [string]$SwitchName
+        [string]$ExternalSwitchName,
+        [string]$InternalSwitchName
     )
     
-    Write-StatusMessage "Creating virtual switch..." -Type Info
+    Write-Log "Creating virtual switches for VM networking..." -Type Info
+    Write-Host ""
     
-    # Check if switch already exists
-    $existingSwitch = Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue
-    if ($existingSwitch) {
-        Write-StatusMessage "Virtual switch '$SwitchName' already exists." -Type Info
-        return
-    }
-    
+    # External Switch - try to create, but don't fail if no adapter
+    Write-Log "Creating external virtual switch..." -Type Info
     try {
-        # Get available physical network adapters
-        $netAdapters = Get-NetAdapter -Physical | Where-Object { $_.Status -eq "Up" }
-        
-        if ($netAdapters.Count -eq 0) {
-            Write-StatusMessage "No active physical network adapters found. Creating internal switch instead." -Type Warning
-            
-            # Create internal switch
-            New-VMSwitch -Name "$SwitchName-Internal" `
-                        -SwitchType Internal `
-                        -ErrorAction Stop
-            
-            Write-StatusMessage "Created internal virtual switch: $SwitchName-Internal" -Type Success
+        # Check if external switch already exists
+        $existingExternal = Get-VMSwitch -Name $ExternalSwitchName -ErrorAction SilentlyContinue
+        if ($existingExternal) {
+            Write-Log "External virtual switch '$ExternalSwitchName' already exists." -Type Info
         }
         else {
-            # Display available adapters
-            Write-StatusMessage "Available network adapters:" -Type Info
-            $netAdapters | ForEach-Object { Write-Host "  - $($_.Name): $($_.InterfaceDescription)" }
+            # Get available physical network adapters
+            $adapters = Get-NetAdapter -Physical | Where-Object { $_.Status -eq "Up" }
             
-            # Use the first available adapter for external switch
-            $primaryAdapter = $netAdapters | Select-Object -First 1
-            
-            New-VMSwitch -Name $SwitchName `
-                        -NetAdapterName $primaryAdapter.Name `
-                        -AllowManagementOS $true `
-                        -ErrorAction Stop
-            
-            Write-StatusMessage "Created external virtual switch: $SwitchName (bound to $($primaryAdapter.Name))" -Type Success
+            if ($adapters.Count -gt 0) {
+                $adapter = $adapters | Select-Object -First 1
+                Write-Log "Found active network adapter: $($adapter.Name) - $($adapter.InterfaceDescription)" -Type Info
+                
+                New-VMSwitch -Name $ExternalSwitchName `
+                             -NetAdapterName $adapter.Name `
+                             -AllowManagementOS $true `
+                             -ErrorAction Stop | Out-Null
+                
+                Write-Log "Created external virtual switch: $ExternalSwitchName (bound to $($adapter.Name))" -Type Success
+            }
+            else {
+                Write-Log "No active physical network adapters found. Skipping external switch creation." -Type Warning
+            }
         }
     }
     catch {
-        Write-StatusMessage "Error creating virtual switch: $_" -Type Error
+        Write-Log "Error creating external virtual switch: $_" -Type Warning
+        Write-Log "Continuing with other virtual switches..." -Type Info
     }
+    
+    Write-Host ""
+    
+    # Internal Switch - ALWAYS create as fallback
+    Write-Log "Creating internal virtual switch (always created as fallback)..." -Type Info
+    try {
+        # Check if internal switch already exists
+        $existingInternal = Get-VMSwitch -Name $InternalSwitchName -ErrorAction SilentlyContinue
+        if ($existingInternal) {
+            Write-Log "Internal virtual switch '$InternalSwitchName' already exists." -Type Info
+        }
+        else {
+            New-VMSwitch -Name $InternalSwitchName `
+                         -SwitchType Internal `
+                         -ErrorAction Stop | Out-Null
+            
+            Write-Log "Created internal virtual switch: $InternalSwitchName" -Type Success
+        }
+    }
+    catch {
+        Write-Log "Error creating internal virtual switch: $_" -Type Error
+    }
+    
+    Write-Host ""
+    
+    # Private Switch - create for isolated testing
+    Write-Log "Creating private virtual switch for isolated testing..." -Type Info
+    try {
+        $privateSwitchName = "Private-vSwitch"
+        
+        # Check if private switch already exists
+        $existingPrivate = Get-VMSwitch -Name $privateSwitchName -ErrorAction SilentlyContinue
+        if ($existingPrivate) {
+            Write-Log "Private virtual switch '$privateSwitchName' already exists." -Type Info
+        }
+        else {
+            New-VMSwitch -Name $privateSwitchName `
+                         -SwitchType Private `
+                         -ErrorAction Stop | Out-Null
+            
+            Write-Log "Created private virtual switch: $privateSwitchName" -Type Success
+        }
+    }
+    catch {
+        Write-Log "Error creating private virtual switch: $_" -Type Warning
+        Write-Log "This is optional and does not affect VM deployment." -Type Info
+    }
+    
+    Write-Host ""
 }
 
 # Function to configure firewall rules for Hyper-V
 function Set-HyperVFirewallRules {
-    Write-StatusMessage "Configuring firewall rules for Hyper-V..." -Type Info
+    Write-Log "Configuring firewall rules for Hyper-V..." -Type Info
     
     try {
         # Enable Hyper-V firewall rules
@@ -254,192 +328,24 @@ function Set-HyperVFirewallRules {
         
         if ($hyperVRules) {
             $hyperVRules | Enable-NetFirewallRule -ErrorAction SilentlyContinue
-            Write-StatusMessage "Hyper-V firewall rules enabled." -Type Success
+            Write-Log "Hyper-V firewall rules enabled." -Type Success
         }
         
         # Enable VM monitoring rules
         $vmMonitorRules = Get-NetFirewallRule -DisplayGroup "Virtual Machine Monitoring" -ErrorAction SilentlyContinue
         if ($vmMonitorRules) {
             $vmMonitorRules | Enable-NetFirewallRule -ErrorAction SilentlyContinue
-            Write-StatusMessage "Virtual Machine Monitoring firewall rules enabled." -Type Success
+            Write-Log "Virtual Machine Monitoring firewall rules enabled." -Type Success
         }
     }
     catch {
-        Write-StatusMessage "Error configuring firewall rules: $_" -Type Error
-    }
-}
-
-# Function to download Ubuntu ISO
-function Get-UbuntuISO {
-    param(
-        [string]$ISOPath,
-        [string]$ISOUrl
-    )
-    
-    $fileName = [System.IO.Path]::GetFileName($ISOUrl)
-    $fullPath = Join-Path -Path $ISOPath -ChildPath $fileName
-    
-    if (Test-Path $fullPath) {
-        Write-StatusMessage "Ubuntu ISO already exists: $fullPath" -Type Success
-        return $fullPath
-    }
-    
-    Write-StatusMessage "Downloading Ubuntu ISO (~2.5GB)..." -Type Info
-    Write-StatusMessage "URL: $ISOUrl" -Type Info
-    Write-StatusMessage "Destination: $fullPath" -Type Info
-    
-    try {
-        # Try BITS transfer first (supports resume and progress)
-        Import-Module BitsTransfer -ErrorAction Stop
-        Start-BitsTransfer -Source $ISOUrl -Destination $fullPath -DisplayName "Ubuntu ISO Download" -Description "Downloading Ubuntu Server ISO"
-        Write-StatusMessage "Ubuntu ISO downloaded successfully." -Type Success
-        return $fullPath
-    }
-    catch {
-        Write-StatusMessage "BITS transfer failed, using WebClient..." -Type Warning
-        
-        try {
-            $webClient = New-Object System.Net.WebClient
-            $downloadComplete = $false
-            $downloadError = $null
-            
-            # Add progress event handler
-            Register-ObjectEvent -InputObject $webClient -EventName DownloadProgressChanged -Action {
-                $percent = $Event.SourceEventArgs.ProgressPercentage
-                Write-Progress -Activity "Downloading Ubuntu ISO" -Status "$percent% Complete" -PercentComplete $percent
-            } | Out-Null
-            
-            # Add completion event handler
-            Register-ObjectEvent -InputObject $webClient -EventName DownloadFileCompleted -Action {
-                $script:downloadComplete = $true
-                if ($Event.SourceEventArgs.Error) {
-                    $script:downloadError = $Event.SourceEventArgs.Error
-                }
-            } | Out-Null
-            
-            # Download the file
-            $webClient.DownloadFileAsync($ISOUrl, $fullPath)
-            
-            # Wait for download to complete
-            while ($webClient.IsBusy) {
-                Start-Sleep -Milliseconds 100
-            }
-            
-            # Clean up event registrations
-            Get-EventSubscriber | Where-Object { $_.SourceObject -eq $webClient } | Unregister-Event
-            
-            Write-Progress -Activity "Downloading Ubuntu ISO" -Completed
-            $webClient.Dispose()
-            
-            # Check for errors
-            if ($downloadError) {
-                Write-StatusMessage "Download failed: $downloadError" -Type Error
-                return $null
-            }
-            
-            if (-not (Test-Path $fullPath)) {
-                Write-StatusMessage "Download completed but file not found." -Type Error
-                return $null
-            }
-            
-            Write-StatusMessage "Ubuntu ISO downloaded successfully." -Type Success
-            return $fullPath
-        }
-        catch {
-            Write-StatusMessage "Failed to download Ubuntu ISO: $_" -Type Error
-            return $null
-        }
-    }
-}
-
-# Function to create Ubuntu VM
-function New-UbuntuVM {
-    param(
-        [string]$VMName,
-        [string]$VMPath,
-        [string]$VHDPath,
-        [long]$MemorySize,
-        [long]$DiskSize,
-        [int]$ProcessorCount,
-        [string]$SwitchName,
-        [string]$ISOPath
-    )
-    
-    Write-StatusMessage "Creating Ubuntu VM: $VMName..." -Type Info
-    
-    # Check if VM already exists
-    $existingVM = Get-VM -Name $VMName -ErrorAction SilentlyContinue
-    if ($existingVM) {
-        Write-StatusMessage "VM '$VMName' already exists. Skipping creation." -Type Warning
-        return $existingVM
-    }
-    
-    try {
-        # Create VHD path for this VM
-        $vhdFileName = "$VMName.vhdx"
-        $vhdFullPath = Join-Path -Path $VHDPath -ChildPath $vhdFileName
-        
-        # Create new VHD
-        Write-StatusMessage "Creating virtual disk ($($DiskSize / 1GB)GB)..." -Type Info
-        New-VHD -Path $vhdFullPath -SizeBytes $DiskSize -Dynamic | Out-Null
-        
-        # Create Generation 2 VM (UEFI) for Ubuntu
-        Write-StatusMessage "Creating Generation 2 VM..." -Type Info
-        $vm = New-VM -Name $VMName `
-                     -MemoryStartupBytes $MemorySize `
-                     -Generation 2 `
-                     -VHDPath $vhdFullPath `
-                     -Path $VMPath `
-                     -ErrorAction Stop
-        
-        # Configure VM settings
-        Write-StatusMessage "Configuring VM settings..." -Type Info
-        
-        # Set processor count
-        Set-VMProcessor -VMName $VMName -Count $ProcessorCount
-        
-        # Enable dynamic memory
-        Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $true -MinimumBytes ($MemorySize / 2) -MaximumBytes $MemorySize
-        
-        # Disable Secure Boot (required for Ubuntu compatibility)
-        Set-VMFirmware -VMName $VMName -EnableSecureBoot Off
-        
-        # Connect to virtual switch
-        if (Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue) {
-            Get-VMNetworkAdapter -VMName $VMName | Connect-VMNetworkAdapter -SwitchName $SwitchName
-            Write-StatusMessage "Connected to virtual switch: $SwitchName" -Type Success
-        }
-        else {
-            Write-StatusMessage "Virtual switch '$SwitchName' not found. VM network adapter not connected." -Type Warning
-        }
-        
-        # Add DVD drive and attach ISO
-        if ($ISOPath -and (Test-Path $ISOPath)) {
-            Write-StatusMessage "Attaching Ubuntu ISO to DVD drive..." -Type Info
-            Add-VMDvdDrive -VMName $VMName -Path $ISOPath
-            
-            # Set boot order: DVD first, then HDD
-            $dvdDrive = Get-VMDvdDrive -VMName $VMName
-            $hardDrive = Get-VMHardDiskDrive -VMName $VMName
-            Set-VMFirmware -VMName $VMName -BootOrder $dvdDrive, $hardDrive
-            Write-StatusMessage "Boot order configured: DVD first, then HDD" -Type Success
-        }
-        else {
-            Write-StatusMessage "ISO path not provided or not found. DVD drive not configured." -Type Warning
-        }
-        
-        Write-StatusMessage "Ubuntu VM created successfully." -Type Success
-        return $vm
-    }
-    catch {
-        Write-StatusMessage "Error creating Ubuntu VM: $_" -Type Error
-        return $null
+        Write-Log "Error configuring firewall rules: $_" -Type Error
     }
 }
 
 # Main execution
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "  Zero-Touch Hyper-V & Ubuntu VM Deployment" -ForegroundColor Cyan
+Write-Host "  Zero-Touch Hyper-V Infrastructure Setup" -ForegroundColor Cyan
 Write-Host "  Windows Server 2022" -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -447,13 +353,13 @@ Write-Host ""
 # Check if running as administrator
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-StatusMessage "This script must be run as Administrator. Please restart PowerShell with elevated privileges." -Type Error
+    Write-Log "This script must be run as Administrator. Please restart PowerShell with elevated privileges." -Type Error
     exit 1
 }
 
 # Check virtualization support
 if (-not (Test-VirtualizationSupport)) {
-    Write-StatusMessage "Cannot proceed without hardware virtualization support." -Type Error
+    Write-Log "Cannot proceed without hardware virtualization support." -Type Error
     exit 1
 }
 
@@ -465,31 +371,31 @@ Write-Host ""
 
 # Check if Hyper-V is already installed
 if (Test-HyperVInstalled) {
-    Write-StatusMessage "Hyper-V is already installed. Proceeding with configuration..." -Type Info
+    Write-Log "Hyper-V is already installed. Proceeding with configuration..." -Type Info
 }
 else {
     # Install Hyper-V
     $installSuccess = Install-HyperVRole
     
     if (-not $installSuccess) {
-        Write-StatusMessage "Hyper-V installation failed. Exiting..." -Type Error
+        Write-Log "Hyper-V installation failed. Exiting..." -Type Error
         exit 1
     }
     
     # Check if restart is needed
     $feature = Get-WindowsFeature -Name Hyper-V
     if ($feature.InstallState -eq "InstallPending") {
-        Write-StatusMessage "Hyper-V installation is pending a restart." -Type Warning
+        Write-Log "Hyper-V installation is pending a restart." -Type Warning
         
         if ($AutoRestart) {
-            Write-StatusMessage "Auto-restart enabled. Restarting server in 30 seconds..." -Type Warning
-            Write-StatusMessage "After restart, please run this script again to complete configuration." -Type Info
+            Write-Log "Auto-restart enabled. Restarting server in 30 seconds..." -Type Warning
+            Write-Log "After restart, please run this script again to complete configuration." -Type Info
             Start-Sleep -Seconds 30
             Restart-Computer -Force
         }
         else {
-            Write-StatusMessage "Please restart the server and run this script again to complete configuration." -Type Warning
-            Write-StatusMessage "To enable automatic restart, use the -AutoRestart parameter." -Type Info
+            Write-Log "Please restart the server and run this script again to complete configuration." -Type Warning
+            Write-Log "To enable automatic restart, use the -AutoRestart parameter." -Type Info
         }
         exit 0
     }
@@ -512,95 +418,72 @@ try {
     # Configure host settings
     Set-HyperVHostConfiguration -VMPath $VMPath -VHDPath $VHDPath
     
-    # Create virtual switch
-    if ($CreateExternalSwitch) {
-        New-HyperVVirtualSwitch -SwitchName $VirtualSwitchName
-    }
-    
-    # Configure firewall rules
-    Set-HyperVFirewallRules
-    
-    Write-StatusMessage "Hyper-V configuration completed successfully." -Type Success
+    Write-Log "Hyper-V configuration completed successfully." -Type Success
 }
 catch {
-    Write-StatusMessage "Error during configuration: $_" -Type Error
-    Write-StatusMessage "The Hyper-V module may not be available. Try restarting the server first." -Type Warning
+    Write-Log "Error during configuration: $_" -Type Error
+    Write-Log "The Hyper-V module may not be available. Try restarting the server first." -Type Warning
     exit 1
 }
 
-# Deploy Ubuntu VM if requested
-if ($DeployUbuntuVM) {
-    Write-Host ""
-    Write-Host "====================================================" -ForegroundColor Yellow
-    Write-Host "  STEP 3: Ubuntu VM Deployment" -ForegroundColor Yellow
-    Write-Host "====================================================" -ForegroundColor Yellow
-    Write-Host ""
-    
-    # Download Ubuntu ISO
-    $isoFile = Get-UbuntuISO -ISOPath $ISOPath -ISOUrl $UbuntuISOUrl
-    
-    if ($isoFile) {
-        # Create Ubuntu VM
-        $ubuntuVM = New-UbuntuVM -VMName $UbuntuVMName `
-                                  -VMPath $VMPath `
-                                  -VHDPath $VHDPath `
-                                  -MemorySize $UbuntuVMMemory `
-                                  -DiskSize $UbuntuVMDiskSize `
-                                  -ProcessorCount $UbuntuVMCPUCount `
-                                  -SwitchName $VirtualSwitchName `
-                                  -ISOPath $isoFile
-        
-        if ($ubuntuVM -and $AutoStartVM) {
-            Write-StatusMessage "Starting Ubuntu VM..." -Type Info
-            try {
-                Start-VM -Name $UbuntuVMName -ErrorAction Stop
-                Write-StatusMessage "Ubuntu VM started successfully." -Type Success
-            }
-            catch {
-                Write-StatusMessage "Error starting VM: $_" -Type Warning
-            }
-        }
-    }
-    else {
-        Write-StatusMessage "Ubuntu VM deployment skipped due to ISO download failure." -Type Warning
-    }
-}
+Write-Host ""
+Write-Host "====================================================" -ForegroundColor Yellow
+Write-Host "  STEP 3: Virtual Switch Creation" -ForegroundColor Yellow
+Write-Host "====================================================" -ForegroundColor Yellow
+Write-Host ""
+
+# Create virtual switches
+New-HyperVVirtualSwitches -ExternalSwitchName $ExternalSwitchName -InternalSwitchName $InternalSwitchName
+
+Write-Host ""
+Write-Host "====================================================" -ForegroundColor Yellow
+Write-Host "  STEP 4: Firewall Configuration" -ForegroundColor Yellow
+Write-Host "====================================================" -ForegroundColor Yellow
+Write-Host ""
+
+# Configure firewall rules
+Set-HyperVFirewallRules
 
 Write-Host ""
 Write-Host "====================================================" -ForegroundColor Green
-Write-Host "  Zero-Touch Deployment Completed!" -ForegroundColor Green
+Write-Host "  Hyper-V Infrastructure Setup Completed!" -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Green
 Write-Host ""
 
 # Display summary
-Write-StatusMessage "Deployment Summary:" -Type Info
+Write-Log "Deployment Summary:" -Type Info
 Write-Host "  ✓ Hyper-V: Installed and configured"
 Write-Host "  ✓ Storage Paths:"
 Write-Host "    - VMs: $VMPath"
 Write-Host "    - VHDs: $VHDPath"
 Write-Host "    - ISOs: $ISOPath"
-Write-Host "  ✓ Virtual Switch: $VirtualSwitchName"
 
-if ($DeployUbuntuVM) {
-    Write-Host "  ✓ Ubuntu VM: $UbuntuVMName"
-    Write-Host "    - Memory: $($UbuntuVMMemory / 1GB)GB"
-    Write-Host "    - Disk: $($UbuntuVMDiskSize / 1GB)GB"
-    Write-Host "    - CPUs: $UbuntuVMCPUCount"
-    Write-Host "    - Status: $(if ($AutoStartVM) { 'Started' } else { 'Created (not started)' })"
-    
-    Write-Host ""
-    Write-StatusMessage "Next Steps:" -Type Info
-    Write-Host "  1. Connect to VM using Hyper-V Manager or VMConnect:"
-    Write-Host "     vmconnect.exe localhost '$UbuntuVMName'"
-    Write-Host "  2. Complete Ubuntu installation wizard"
-    Write-Host "  3. Configure network settings as needed"
+Write-Host ""
+Write-Log "Available Virtual Switches:" -Type Info
+$switches = Get-VMSwitch
+if ($switches) {
+    foreach ($switch in $switches) {
+        $switchType = $switch.SwitchType
+        $notes = ""
+        if ($switch.NetAdapterInterfaceDescription) {
+            $notes = " (bound to: $($switch.NetAdapterInterfaceDescription))"
+        }
+        Write-Host "  ✓ $($switch.Name) - $switchType$notes"
+    }
 }
 else {
-    Write-Host ""
-    Write-StatusMessage "Next Steps:" -Type Info
-    Write-Host "  1. Use Hyper-V Manager or PowerShell to create virtual machines"
-    Write-Host "  2. Configure additional virtual switches as needed"
-    Write-Host "  3. Set up VM replication if required"
+    Write-Host "  ! No virtual switches found. Please create switches manually."
 }
+
+Write-Host ""
+Write-Log "Next Steps:" -Type Info
+Write-Host "  1. Deploy Ubuntu VMs using the separate script:"
+Write-Host "     .\Deploy-UbuntuVM.ps1"
+Write-Host ""
+Write-Host "  2. Or create custom VMs using Hyper-V Manager or PowerShell:"
+Write-Host "     New-VM -Name 'MyVM' -MemoryStartupBytes 4GB"
+Write-Host ""
+Write-Host "  3. Configure additional virtual switches if needed:"
+Write-Host "     New-VMSwitch -Name 'MySwitch' -SwitchType Internal"
 
 Write-Host ""
