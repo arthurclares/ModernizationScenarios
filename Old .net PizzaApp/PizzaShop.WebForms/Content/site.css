@@ -8,15 +8,26 @@
    ========================================================================== */
 
 :root {
-    /* LEGACY PATTERN: No CSS variables in older browsers */
-    /* MODERNIZATION PATH: CSS custom properties for theming */
+    /* Azure Design System Color Palette */
+    --azure-primary: #0078D4;           /* Azure blue */
+    --azure-primary-dark: #005A9E;      /* Hover states */
+    --azure-primary-light: #2B88D8;     /* Light variant */
+    --azure-secondary: #50E6FF;         /* Azure light blue - accents */
+    --azure-background: #F3F2F1;        /* Microsoft neutral gray */
+    --azure-success: #107C10;           /* Microsoft green */
+    --azure-text-dark: #323130;         /* Dark gray text */
+    --azure-text-medium: #605E5C;       /* Medium gray text */
+    --azure-text-light: #8A8886;        /* Light gray text */
+    --azure-border: #E1DFDD;            /* Border gray */
+    --azure-hover: #F5F5F5;             /* Hover background */
+    --azure-gradient: linear-gradient(135deg, var(--azure-primary) 0%, var(--azure-primary-dark) 100%);
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     padding-top: 70px; /* Account for fixed navbar */
     padding-bottom: 50px;
-    background-color: #f8f8f8;
+    background-color: var(--azure-background);
 }
 
 .body-content {
@@ -29,8 +40,8 @@ body {
    ========================================================================== */
 
 .navbar-inverse {
-    background-color: #d32f2f; /* Pizza red */
-    border-color: #b71c1c;
+    background-color: var(--azure-primary);
+    border-color: var(--azure-primary-dark);
 }
 
 .navbar-inverse .navbar-brand {
@@ -41,7 +52,7 @@ body {
 
 .navbar-inverse .navbar-brand:hover,
 .navbar-inverse .navbar-brand:focus {
-    color: #ffeb3b;
+    color: var(--azure-secondary);
 }
 
 .navbar-inverse .navbar-nav > li > a {
@@ -50,19 +61,19 @@ body {
 
 .navbar-inverse .navbar-nav > li > a:hover,
 .navbar-inverse .navbar-nav > li > a:focus {
-    color: #ffeb3b;
-    background-color: #c62828;
+    color: var(--azure-secondary);
+    background-color: var(--azure-primary-dark);
 }
 
 .navbar-inverse .navbar-nav > .active > a {
-    background-color: #b71c1c;
-    color: #ffeb3b;
+    background-color: var(--azure-primary-dark);
+    color: var(--azure-secondary);
 }
 
 /* Cart link styling */
 .cart-link .badge {
-    background-color: #ffeb3b;
-    color: #d32f2f;
+    background-color: var(--azure-secondary);
+    color: var(--azure-primary-dark);
     font-weight: bold;
     margin-left: 5px;
 }
@@ -82,14 +93,14 @@ body {
    ========================================================================== */
 
 .footer {
-    background-color: #333;
+    background-color: var(--azure-text-dark);
     color: #ffffff;
     padding: 30px 0 20px 0;
     margin-top: 50px;
 }
 
 .footer h4 {
-    color: #ffeb3b;
+    color: var(--azure-secondary);
     margin-bottom: 15px;
 }
 
@@ -98,7 +109,7 @@ body {
 }
 
 .footer a {
-    color: #ffeb3b;
+    color: var(--azure-secondary);
 }
 
 .footer a:hover {
@@ -130,7 +141,7 @@ body {
     object-fit: cover;
     background-color: #f5f5f5;
     /* LEGACY PATTERN: Placeholder for missing images */
-    background-image: linear-gradient(135deg, #ffd54f 0%, #ff9800 100%);
+    background-image: linear-gradient(135deg, var(--azure-primary-light) 0%, var(--azure-primary) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -145,7 +156,7 @@ body {
 .pizza-card-title {
     font-size: 22px;
     font-weight: bold;
-    color: #d32f2f;
+    color: var(--azure-primary);
     margin-bottom: 10px;
 }
 
@@ -157,8 +168,8 @@ body {
 
 .pizza-card-category {
     display: inline-block;
-    background-color: #4caf50;
-    color: white;
+    background-color: var(--azure-secondary);
+    color: var(--azure-primary-dark);
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 12px;
@@ -168,7 +179,7 @@ body {
 .pizza-card-price {
     font-size: 24px;
     font-weight: bold;
-    color: #d32f2f;
+    color: var(--azure-primary);
     margin-bottom: 15px;
 }
 
@@ -191,8 +202,8 @@ body {
 }
 
 .builder-section h3 {
-    color: #d32f2f;
-    border-bottom: 3px solid #d32f2f;
+    color: var(--azure-primary);
+    border-bottom: 3px solid var(--azure-primary);
     padding-bottom: 10px;
     margin-bottom: 20px;
 }
@@ -210,8 +221,8 @@ body {
 
 .size-options input[type="radio"]:checked + label,
 .crust-options input[type="radio"]:checked + label {
-    border-color: #d32f2f;
-    background-color: #ffebee;
+    border-color: var(--azure-primary);
+    background-color: #E3F2FD;
 }
 
 .topping-grid {
@@ -234,16 +245,16 @@ body {
 }
 
 .topping-item:hover {
-    border-color: #d32f2f;
-    background-color: #fff3e0;
+    border-color: var(--azure-primary);
+    background-color: #E3F2FD;
 }
 
 .topping-item input[type="checkbox"]:checked ~ .topping-content {
-    background-color: #ffebee;
+    background-color: #E3F2FD;
 }
 
 .topping-item input[type="checkbox"]:checked ~ .topping-content .topping-name {
-    color: #d32f2f;
+    color: var(--azure-primary);
     font-weight: bold;
 }
 
@@ -258,13 +269,13 @@ body {
 }
 
 .topping-price {
-    color: #4caf50;
+    color: var(--azure-success);
     font-size: 14px;
 }
 
 .vegetarian-badge {
     display: inline-block;
-    background-color: #4caf50;
+    background-color: var(--azure-success);
     color: white;
     font-size: 10px;
     padding: 2px 6px;
@@ -277,7 +288,7 @@ body {
    ========================================================================== */
 
 .price-summary {
-    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    background: var(--azure-gradient);
     color: white;
     border-radius: 8px;
     padding: 25px;
@@ -356,7 +367,7 @@ body {
 
 .cart-item-price {
     font-size: 16px;
-    color: #d32f2f;
+    color: var(--azure-primary);
     font-weight: bold;
 }
 
@@ -376,7 +387,7 @@ body {
     width: 30px;
     height: 30px;
     border: none;
-    background-color: #d32f2f;
+    background-color: var(--azure-primary);
     color: white;
     border-radius: 4px;
     cursor: pointer;
@@ -409,7 +420,7 @@ body {
     margin-top: 15px;
     font-size: 24px;
     font-weight: bold;
-    color: #d32f2f;
+    color: var(--azure-primary);
 }
 
 .empty-cart {
@@ -428,7 +439,7 @@ body {
    ========================================================================== */
 
 .btn-pizza {
-    background-color: #d32f2f;
+    background-color: var(--azure-primary);
     color: white;
     border: none;
     padding: 10px 25px;
@@ -438,20 +449,20 @@ body {
 }
 
 .btn-pizza:hover {
-    background-color: #b71c1c;
+    background-color: var(--azure-primary-dark);
     color: white;
 }
 
 .btn-pizza:focus {
-    background-color: #b71c1c;
+    background-color: var(--azure-primary-dark);
     color: white;
     outline: none;
 }
 
 .btn-pizza-outline {
     background-color: transparent;
-    color: #d32f2f;
-    border: 2px solid #d32f2f;
+    color: var(--azure-primary);
+    border: 2px solid var(--azure-primary);
     padding: 10px 25px;
     border-radius: 4px;
     font-weight: bold;
@@ -459,7 +470,7 @@ body {
 }
 
 .btn-pizza-outline:hover {
-    background-color: #d32f2f;
+    background-color: var(--azure-primary);
     color: white;
 }
 
@@ -468,18 +479,18 @@ body {
    ========================================================================== */
 
 .page-header {
-    color: #d32f2f;
-    border-bottom: 3px solid #d32f2f;
+    color: var(--azure-primary);
+    border-bottom: 3px solid var(--azure-primary);
     padding-bottom: 15px;
     margin-bottom: 30px;
 }
 
 .text-pizza {
-    color: #d32f2f !important;
+    color: var(--azure-primary) !important;
 }
 
 .bg-pizza {
-    background-color: #d32f2f !important;
+    background-color: var(--azure-primary) !important;
 }
 
 /* LEGACY PATTERN: !important usage */
@@ -537,7 +548,7 @@ body {
     color: #333;
     margin-bottom: 30px;
     padding-bottom: 15px;
-    border-bottom: 3px solid #d32f2f;
+    border-bottom: 3px solid var(--azure-primary);
 }
 
 .empty-cart-message {
@@ -601,7 +612,7 @@ body {
 }
 
 .pizza-meta .badge {
-    background-color: #d32f2f;
+    background-color: var(--azure-primary);
     color: white;
     padding: 4px 10px;
     border-radius: 4px;
@@ -616,7 +627,7 @@ body {
 }
 
 .item-price {
-    color: #d32f2f;
+    color: var(--azure-primary);
     font-weight: bold;
     font-size: 16px;
 }
@@ -646,7 +657,7 @@ body {
 
 .item-total {
     font-size: 20px;
-    color: #d32f2f;
+    color: var(--azure-primary);
 }
 
 .order-summary-section {
@@ -679,7 +690,7 @@ body {
 }
 
 .total-amount {
-    color: #d32f2f;
+    color: var(--azure-primary);
 }
 
 .checkout-actions {
@@ -711,7 +722,7 @@ body {
 
 .success-icon {
     font-size: 72px;
-    color: #4caf50;
+    color: var(--azure-success);
     margin-bottom: 20px;
 }
 

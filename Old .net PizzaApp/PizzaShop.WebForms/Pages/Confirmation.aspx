@@ -2,8 +2,8 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
     <div class="confirmation-page">
-        <!-- LEGACY PATTERN: Panel visibility for conditional rendering -->
-        <!-- MODERNIZATION PATH: Component conditional rendering (@if in Blazor) -->
+        <%-- LEGACY PATTERN: Panel visibility for conditional rendering --%>
+        <%-- MODERNIZATION PATH: Component conditional rendering (@if in Blazor) --%>
         <asp:Panel ID="NoOrderPanel" runat="server" Visible="false" CssClass="no-order-message">
             <i class="fa fa-exclamation-triangle fa-3x"></i>
             <h2>No Order Found</h2>
@@ -41,8 +41,8 @@
 
                 <div class="order-items-box">
                     <h3>Your Order</h3>
-                    <!-- LEGACY PATTERN: Repeater for displaying order items -->
-                    <!-- MODERNIZATION PATH: Component iterators or templates -->
+                    <%-- LEGACY PATTERN: Repeater for displaying order items --%>
+                    <%-- MODERNIZATION PATH: Component iterators or templates --%>
                     <asp:Repeater ID="OrderItemsRepeater" runat="server">
                         <ItemTemplate>
                             <div class="confirmation-item">

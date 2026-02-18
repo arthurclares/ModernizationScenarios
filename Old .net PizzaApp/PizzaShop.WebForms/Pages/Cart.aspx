@@ -4,15 +4,12 @@
     <div class="cart-page">
         <h1>Your Shopping Cart</h1>
         
-        <!-- LEGACY PATTERN: ScriptManager required for UpdatePanel -->
-        <!-- MODERNIZATION PATH: SignalR or Blazor for real-time updates -->
-        <asp:ScriptManager ID="ScriptManager1" runat="server" />
-        
-        <!-- LEGACY PATTERN: UpdatePanel for partial page updates -->
-        <!-- MODERNIZATION PATH: Client-side state management with React/Vue/Blazor -->
+        <%-- LEGACY PATTERN: UpdatePanel for partial page updates --%>
+        <%-- MODERNIZATION PATH: Client-side state management with React/Vue/Blazor --%>
+        <%-- NOTE: ScriptManager is in Site.Master and available to all pages --%>
         <asp:UpdatePanel ID="CartUpdatePanel" runat="server" UpdateMode="Conditional">
             <ContentTemplate>
-                <!-- Empty Cart Message -->
+                <%-- Empty Cart Message --%>
                 <asp:Panel ID="EmptyCartPanel" runat="server" Visible="false" CssClass="empty-cart-message">
                     <i class="fa fa-shopping-cart fa-3x"></i>
                     <h2>Your cart is empty</h2>
@@ -22,11 +19,11 @@
                     </asp:HyperLink>
                 </asp:Panel>
                 
-                <!-- Cart Items -->
+                <%-- Cart Items --%>
                 <asp:Panel ID="CartItemsPanel" runat="server" Visible="false">
                     <div class="cart-items-section">
-                        <!-- LEGACY PATTERN: Repeater control for data binding -->
-                        <!-- MODERNIZATION PATH: Component-based rendering (Blazor) or client-side templating -->
+                        <%-- LEGACY PATTERN: Repeater control for data binding --%>
+                        <%-- MODERNIZATION PATH: Component-based rendering (Blazor) or client-side templating --%>
                         <asp:Repeater ID="CartRepeater" runat="server" OnItemCommand="CartRepeater_ItemCommand">
                             <ItemTemplate>
                                 <div class="cart-item">
@@ -45,8 +42,8 @@
                                     <div class="cart-item-actions">
                                         <div class="quantity-control">
                                             <label>Qty:</label>
-                                            <!-- LEGACY PATTERN: TextBox server control with validation -->
-                                            <!-- MODERNIZATION PATH: HTML5 input with client-side validation -->
+                                            <%-- LEGACY PATTERN: TextBox server control with validation --%>
+                                            <%-- MODERNIZATION PATH: HTML5 input with client-side validation --%>
                                             <asp:TextBox ID="QuantityTextBox" runat="server" 
                                                 Text='<%# Eval("Quantity") %>' 
                                                 CssClass="form-control quantity-input"
@@ -61,8 +58,8 @@
                                                 Display="Dynamic"
                                                 ValidationGroup='<%# "Item" + Container.ItemIndex %>' />
                                             
-                                            <!-- LEGACY PATTERN: CommandName/CommandArgument pattern for item operations -->
-                                            <!-- MODERNIZATION PATH: Event handlers with strongly-typed parameters -->
+                                            <%-- LEGACY PATTERN: CommandName/CommandArgument pattern for item operations --%>
+                                            <%-- MODERNIZATION PATH: Event handlers with strongly-typed parameters --%>
                                             <asp:LinkButton ID="UpdateButton" runat="server" 
                                                 CommandName="Update" 
                                                 CommandArgument='<%# Container.ItemIndex %>'
@@ -89,7 +86,7 @@
                         </asp:Repeater>
                     </div>
                     
-                    <!-- Order Summary -->
+                    <%-- Order Summary --%>
                     <div class="order-summary-section">
                         <div class="order-summary">
                             <h3>Order Summary</h3>
@@ -123,8 +120,8 @@
                                     <i class="fa fa-arrow-left"></i> Continue Shopping
                                 </asp:HyperLink>
                                 
-                                <!-- LEGACY PATTERN: Button postback for checkout -->
-                                <!-- MODERNIZATION PATH: API call to payment gateway with async handling -->
+                                <%-- LEGACY PATTERN: Button postback for checkout --%>
+                                <%-- MODERNIZATION PATH: API call to payment gateway with async handling --%>
                                 <asp:Button ID="CheckoutButton" runat="server" 
                                     Text="Proceed to Checkout" 
                                     CssClass="btn btn-success btn-block btn-lg"
@@ -134,7 +131,7 @@
                     </div>
                 </asp:Panel>
                 
-                <!-- Success Message -->
+                <%-- Success Message --%>
                 <asp:Panel ID="SuccessMessagePanel" runat="server" Visible="false" CssClass="alert alert-success">
                     <i class="fa fa-check-circle"></i> <asp:Label ID="SuccessMessageLabel" runat="server" />
                 </asp:Panel>

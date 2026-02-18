@@ -103,7 +103,7 @@ var notificationStyle = '<style>' +
     '    position: fixed;' +
     '    top: 80px;' +
     '    right: 20px;' +
-    '    background-color: #4caf50;' +
+    '    background-color: #107C10;' +
     '    color: white;' +
     '    padding: 15px 25px;' +
     '    border-radius: 4px;' +

@@ -1,9 +1,9 @@
 <%@ Page Title="Build Your Pizza" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="BuildPizza.aspx.cs" Inherits="PizzaShop.WebForms.Pages.BuildPizza" %>
 
-<!--
+<%--
     LEGACY PATTERN: Web Forms page with complex server controls
     MODERNIZATION PATH: Blazor component with two-way binding
--->
+--%>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 </asp:Content>
@@ -15,13 +15,13 @@
 
     <div class="row">
         <div class="col-md-8">
-            <!-- Size Selection -->
+            <%-- Size Selection --%>
             <div class="builder-section">
                 <h3><i class="fa fa-circle"></i> Step 1: Choose Your Size</h3>
-                 <!--
+                 <%--
                     LEGACY PATTERN: RadioButtonList server control
                     MODERNIZATION PATH: Radio group with component binding
-                -->
+                --%>
                 <asp:RadioButtonList ID="SizeList" runat="server" 
                     RepeatLayout="UnorderedList" CssClass="size-options"
                     AutoPostBack="false" OnSelectedIndexChanged="UpdatePrice">
@@ -29,10 +29,10 @@
                     <asp:ListItem Value="Medium">Medium (12") - +30%</asp:ListItem>
                     <asp:ListItem Value="Large">Large (14") - +60%</asp:ListItem>
                 </asp:RadioButtonList>
-                <!--
+                <%--
                     LEGACY PATTERN: RequiredFieldValidator for validation
                     MODERNIZATION PATH: Data annotations or FluentValidation
-                -->
+                --%>
                 <asp:RequiredFieldValidator ID="SizeValidator" runat="server" 
                     ControlToValidate="SizeList"
                     ErrorMessage="Please select a size" 
@@ -41,13 +41,13 @@
                 </asp:RequiredFieldValidator>
             </div>
 
-            <!-- Crust Selection -->
+            <%-- Crust Selection --%>
             <div class="builder-section">
                 <h3><i class="fa fa-bread-slice"></i> Step 2: Choose Your Crust</h3>
-                <!--
+                <%--
                     LEGACY PATTERN: DropDownList control
                     MODERNIZATION PATH: Select element with binding
-                -->
+                --%>
                 <asp:DropDownList ID="CrustList" runat="server" CssClass="form-control" 
                     AutoPostBack="false" OnSelectedIndexChanged="UpdatePrice">
                     <asp:ListItem Value="Thin" Selected="True">Thin Crust</asp:ListItem>
@@ -58,19 +58,19 @@
                 </asp:DropDownList>
             </div>
 
-            <!-- Topping Selection -->
+            <%-- Topping Selection --%>
             <div class="builder-section">
                 <h3><i class="fa fa-pepper-hot"></i> Step 3: Select Your Toppings</h3>
                 <p class="text-muted">Each topping adds to the total price. Choose as many as you like!</p>
                 
-                <!--
+                <%--
                     LEGACY PATTERN: UpdatePanel for partial page updates
                     MODERNIZATION NOTE: AJAX Control Toolkit required
                     MODERNIZATION PATH: SignalR or client-side state management
-                -->
+                --%>
                 <asp:UpdatePanel ID="ToppingUpdatePanel" runat="server" UpdateMode="Conditional">
                     <ContentTemplate>
-                        <!-- Category Tabs (simulated with filter) -->
+                        <%-- Category Tabs (simulated with filter) --%>
                         <div style="margin-bottom: 20px;">
                             <label style="font-weight: bold; margin-right: 10px;">Filter:</label>
                             <asp:DropDownList ID="ToppingCategoryFilter" runat="server" 
@@ -89,11 +89,11 @@
                                 style="margin-left: 20px;" />
                         </div>
                         
-                        <!-- Toppings CheckBoxList -->
-                        <!--
+                        <%-- Toppings CheckBoxList --%>
+                        <%--
                             LEGACY PATTERN: CheckBoxList in UpdatePanel for AJAX updates
                             MODERNIZATION PATH: Checkbox components with state binding
-                        -->
+                        --%>
                         <asp:CheckBoxList ID="ToppingsList" runat="server" 
                             RepeatLayout="UnorderedList"
                             CssClass="topping-grid"
@@ -105,31 +105,29 @@
                 </asp:UpdatePanel>
             </div>
 
-            <!-- Add to Cart Button -->
+            <%-- Add to Cart Button --%>
             <div class="builder-section">
-                <!--
+                <%--
                     LEGACY PATTERN: asp:Button for postback submit
                     MODERNIZATION PATH: onclick event or form submit with API call
-                -->
+                --%>
                 <asp:Button ID="AddToCartButton" runat="server" 
                     Text="Add to Cart" 
                     CssClass="btn btn-pizza btn-lg btn-block" 
-                    OnClick="AddToCartButton_Click">
-                    <i class="fa fa-shopping-cart"></i> Add to Cart
-                </asp:Button>
+                    OnClick="AddToCartButton_Click" />
             </div>
         </div>
 
         <div class="col-md-4">
-            <!-- Price Summary (Sticky Sidebar) -->
+            <%-- Price Summary (Sticky Sidebar) --%>
             <div class="price-summary">
                 <h3><i class="fa fa-calculator"></i> Your Pizza</h3>
                 
-                <!--
+                <%--
                     LEGACY PATTERN: UpdatePanel for dynamic price updates
                     MODERNIZATION NOTE: Triggers partial postback
                     MODERNIZATION PATH: Real-time calculation with JavaScript or SignalR
-                -->
+                --%>
                 <asp:UpdatePanel ID="PriceSummaryPanel" runat="server" UpdateMode="Conditional">
                     <ContentTemplate>
                         <div class="price-row">
@@ -157,20 +155,18 @@
                             <asp:Label ID="TotalPriceLabel" runat="server" Text="$8.99"></asp:Label>
                         </div>
                         
-                        <!-- Calculate Price Button -->
+                        <%-- Calculate Price Button --%>
                         <asp:Button ID="CalculatePriceButton" runat="server" 
                             Text="Update Price" 
                             CssClass="btn btn-warning btn-block" 
                             OnClick="CalculatePrice_Click"
-                            style="margin-top: 20px;">
-                            <i class="fa fa-refresh"></i> Update Price
-                        </asp:Button>
+                            style="margin-top: 20px;" />
                     </ContentTemplate>
                     <Triggers>
-                        <!--
+                        <%--
                             LEGACY PATTERN: UpdatePanel triggers for async postbacks
                             MODERNIZATION NOTE: Complex trigger configuration
-                        -->
+                        --%>
                         <asp:AsyncPostBackTrigger ControlID="CalculatePriceButton" EventName="Click" />
                     </Triggers>
                 </asp:UpdatePanel>
@@ -184,11 +180,11 @@
         </div>
     </div>
 
-    <!--
+    <%--
         LEGACY PATTERN: ViewState stores all control state
         MODERNIZATION NOTE: Large ViewState impacts page size
         MODERNIZATION PATH: Stateless design or distributed cache
-    -->
+    --%>
 </asp:Content>
 
 <asp:Content ID="Content3" ContentPlaceHolderID="scripts" runat="server">

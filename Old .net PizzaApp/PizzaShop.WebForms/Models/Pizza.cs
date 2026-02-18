@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace PizzaShop.WebForms.Models
 {
@@ -53,6 +54,27 @@ namespace PizzaShop.WebForms.Models
         /// </summary>
         public string ToppingIds { get; set; }
 
+        /// <summary>
+        /// Collection of toppings for custom pizzas
+        /// LEGACY PATTERN: Directly exposing mutable collection
+        /// MODERNIZATION PATH: Use IReadOnlyCollection or encapsulate with methods
+        /// </summary>
+        public List<Topping> Toppings { get; set; }
+
+        /// <summary>
+        /// Selected size for custom pizzas (Small, Medium, Large)
+        /// LEGACY PATTERN: String-based size instead of enum
+        /// MODERNIZATION PATH: Use PizzaSize enum
+        /// </summary>
+        public string Size { get; set; }
+
+        /// <summary>
+        /// Selected crust type for custom pizzas
+        /// LEGACY PATTERN: String-based crust type instead of enum
+        /// MODERNIZATION PATH: Use CrustType enum
+        /// </summary>
+        public string Crust { get; set; }
+
         // LEGACY PATTERN: No data validation attributes
         // MODERNIZATION NOTE: Add [Required], [StringLength], [Range] attributes
         // for automatic validation in ASP.NET Core
@@ -61,6 +83,10 @@ namespace PizzaShop.WebForms.Models
         // MODERNIZATION PATH: Record types with primary constructors
         public Pizza()
         {
+            // Initialize collections to avoid null reference exceptions
+            // LEGACY PATTERN: Defensive initialization in constructor
+            // MODERNIZATION PATH: Use collection initializers or required properties
+            Toppings = new List<Topping>();
         }
 
         /// <summary>

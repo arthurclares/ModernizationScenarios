@@ -9,7 +9,7 @@
 <head runat="server">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%: Page.Title %> - Artisan Pizza Shop</title>
+    <title><%: Page.Title %> - Azure Slice</title>
     
     <!-- 
         LEGACY PATTERN: Bootstrap 3.3.7 (end-of-life 2019)
@@ -25,17 +25,17 @@
     </asp:ContentPlaceHolder>
 </head>
 <body>
-    <!-- 
+    <%-- 
         LEGACY PATTERN: Server-side form with runat="server"
         MODERNIZATION NOTE: Web Forms requires page-level form for postbacks
         MODERNIZATION PATH: Client-side forms with AJAX in modern frameworks
-    -->
+    --%>
     <form id="form1" runat="server">
-        <!-- 
+        <%-- 
             LEGACY PATTERN: ScriptManager required for UpdatePanels and AJAX
             MODERNIZATION NOTE: Part of ASP.NET AJAX framework
             MODERNIZATION PATH: Native browser fetch API or modern frameworks
-        -->
+        --%>
         <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePartialRendering="true">
         </asp:ScriptManager>
         
@@ -54,7 +54,7 @@
                         MODERNIZATION NOTE: Could use plain HTML anchor tag
                     -->
                     <asp:HyperLink ID="brandLink" runat="server" NavigateUrl="~/Pages/Default.aspx" CssClass="navbar-brand">
-                        <i class="fa fa-pizza-slice"></i> Artisan Pizza Shop
+                        <i class="fa fa-pizza-slice"></i> Azure Slice
                     </asp:HyperLink>
                 </div>
                 
@@ -107,7 +107,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         <h4>About Us</h4>
-                        <p>Artisan Pizza Shop - Serving authentic, handcrafted pizzas since 2020.</p>
+                        <p>Azure Slice - Cloud-powered pizza ordering since 2020.</p>
                     </div>
                     <div class="col-md-4">
                         <h4>Hours</h4>
@@ -121,13 +121,13 @@
                         <h4>Contact</h4>
                         <p>
                             <i class="fa fa-phone"></i> (555) 123-4567<br />
-                            <i class="fa fa-envelope"></i> info@artisanpizza.com
+                            <i class="fa fa-envelope"></i> info@azureslice.cloud
                         </p>
                     </div>
                 </div>
                 <hr />
                 <div class="text-center">
-                    <p>&copy; <%: DateTime.Now.Year %> - Artisan Pizza Shop - A Legacy .NET Modernization Demo</p>
+                    <p>&copy; <%: DateTime.Now.Year %> - Azure Slice - A Legacy .NET Modernization Demo</p>
                     <p class="text-muted">
                         <small>Built with ASP.NET Web Forms 4.7.2 | Bootstrap 3.3.7 | jQuery 2.2.4</small>
                     </p>
@@ -143,9 +143,9 @@
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     
-    <!-- Site JavaScript -->
-    <!-- LEGACY PATTERN: Single site.js file loaded on every page -->
-    <!-- MODERNIZATION PATH: Code splitting and lazy loading with bundler -->
+    <%-- Site JavaScript --%>
+    <%-- LEGACY PATTERN: Single site.js file loaded on every page --%>
+    <%-- MODERNIZATION PATH: Code splitting and lazy loading with bundler --%>
     <script src="<%= ResolveUrl("~/Scripts/site.js") %>"></script>
     
     <!-- Custom JavaScript -->
