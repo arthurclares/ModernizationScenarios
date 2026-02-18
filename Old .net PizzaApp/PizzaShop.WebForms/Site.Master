@@ -1,0 +1,182 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site.master.cs" Inherits="PizzaShop.WebForms.SiteMaster" %>
+
+<!DOCTYPE html>
+<!--
+    LEGACY PATTERN: ASP.NET Master Pages for layout
+    MODERNIZATION PATH: Razor Layout pages or Blazor layouts
+-->
+<html lang="en">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%: Page.Title %> - Artisan Pizza Shop</title>
+    
+    <!-- 
+        LEGACY PATTERN: Bootstrap 3.3.7 (end-of-life 2019)
+        MODERNIZATION PATH: Bootstrap 5.x with modern utilities
+    -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    
+    <!-- Custom CSS -->
+    <link href="~/Content/site.css" rel="stylesheet" />
+    
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <!-- 
+        LEGACY PATTERN: Server-side form with runat="server"
+        MODERNIZATION NOTE: Web Forms requires page-level form for postbacks
+        MODERNIZATION PATH: Client-side forms with AJAX in modern frameworks
+    -->
+    <form id="form1" runat="server">
+        <!-- 
+            LEGACY PATTERN: ScriptManager required for UpdatePanels and AJAX
+            MODERNIZATION NOTE: Part of ASP.NET AJAX framework
+            MODERNIZATION PATH: Native browser fetch API or modern frameworks
+        -->
+        <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePartialRendering="true">
+        </asp:ScriptManager>
+        
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top">
+            <div class="container">
+                <div class="navbar-header">
+                    <!-- Mobile toggle button -->
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbarCollapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <!-- 
+                        LEGACY PATTERN: asp:HyperLink server control
+                        MODERNIZATION NOTE: Could use plain HTML anchor tag
+                    -->
+                    <asp:HyperLink ID="brandLink" runat="server" NavigateUrl="~/Pages/Default.aspx" CssClass="navbar-brand">
+                        <i class="fa fa-pizza-slice"></i> Artisan Pizza Shop
+                    </asp:HyperLink>
+                </div>
+                
+                <!-- Navigation Links -->
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="nav navbar-nav">
+                        <li>
+                            <asp:HyperLink ID="homeLink" runat="server" NavigateUrl="~/Pages/Default.aspx">
+                                <i class="fa fa-home"></i> Home
+                            </asp:HyperLink>
+                        </li>
+                        <li>
+                            <asp:HyperLink ID="menuLink" runat="server" NavigateUrl="~/Pages/Menu.aspx">
+                                <i class="fa fa-list"></i> Menu
+                            </asp:HyperLink>
+                        </li>
+                        <li>
+                            <asp:HyperLink ID="buildPizzaLink" runat="server" NavigateUrl="~/Pages/BuildPizza.aspx">
+                                <i class="fa fa-plus-circle"></i> Build Your Own
+                            </asp:HyperLink>
+                        </li>
+                    </ul>
+                    
+                    <!-- Right-aligned cart link -->
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <asp:HyperLink ID="cartLink" runat="server" NavigateUrl="~/Pages/Cart.aspx" CssClass="cart-link">
+                                <i class="fa fa-shopping-cart"></i> Cart 
+                                <span class="badge" id="cartCount" runat="server">0</span>
+                            </asp:HyperLink>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content Area -->
+        <div class="container body-content">
+            <!-- 
+                LEGACY PATTERN: ContentPlaceHolder for page content injection
+                MODERNIZATION PATH: @RenderBody() in Razor or <Router> in Blazor
+            -->
+            <asp:ContentPlaceHolder ID="MainContent" runat="server">
+            </asp:ContentPlaceHolder>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h4>About Us</h4>
+                        <p>Artisan Pizza Shop - Serving authentic, handcrafted pizzas since 2020.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h4>Hours</h4>
+                        <p>
+                            Mon-Thu: 11am - 10pm<br />
+                            Fri-Sat: 11am - 11pm<br />
+                            Sunday: 12pm - 9pm
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h4>Contact</h4>
+                        <p>
+                            <i class="fa fa-phone"></i> (555) 123-4567<br />
+                            <i class="fa fa-envelope"></i> info@artisanpizza.com
+                        </p>
+                    </div>
+                </div>
+                <hr />
+                <div class="text-center">
+                    <p>&copy; <%: DateTime.Now.Year %> - Artisan Pizza Shop - A Legacy .NET Modernization Demo</p>
+                    <p class="text-muted">
+                        <small>Built with ASP.NET Web Forms 4.7.2 | Bootstrap 3.3.7 | jQuery 2.2.4</small>
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </form>
+    
+    <!-- 
+        LEGACY PATTERN: jQuery 2.2.4 (released 2016, no longer maintained)
+        MODERNIZATION PATH: Vanilla JavaScript ES6+ or modern framework
+    -->
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    
+    <!-- Site JavaScript -->
+    <!-- LEGACY PATTERN: Single site.js file loaded on every page -->
+    <!-- MODERNIZATION PATH: Code splitting and lazy loading with bundler -->
+    <script src="<%= ResolveUrl("~/Scripts/site.js") %>"></script>
+    
+    <!-- Custom JavaScript -->
+    <script type="text/javascript">
+        // LEGACY PATTERN: Global JavaScript functions
+        // MODERNIZATION PATH: ES6 modules with import/export
+        
+        $(document).ready(function() {
+            // Highlight active nav item based on current page
+            // LEGACY PATTERN: jQuery DOM manipulation
+            var path = window.location.pathname;
+            $('.navbar-nav a').each(function() {
+                if (this.href.indexOf(path) !== -1) {
+                    $(this).parent().addClass('active');
+                }
+            });
+        });
+        
+        // LEGACY PATTERN: Global function for updating cart count
+        // MODERNIZATION PATH: Component state or global state management
+        function updateCartCount(count) {
+            $('#cartCount').text(count);
+            if (count > 0) {
+                $('#cartCount').addClass('badge-warning');
+            } else {
+                $('#cartCount').removeClass('badge-warning');
+            }
+        }
+    </script>
+    
+    <asp:ContentPlaceHolder ID="scripts" runat="server">
+    </asp:ContentPlaceHolder>
+</body>
+</html>
